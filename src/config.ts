@@ -35,7 +35,7 @@ const defaultConfig: Config = {
     browserWidth: 1024,
     browserHeight: 768,
   },
-  modelName: "gemini-2.0-flash", // Default Model
+  modelName: process.env.STAGEHAND_MODEL || "gemini-2.0-flash", // Read from env var or use default
   // LOCAL mode specific config
   screenshot: {
     enabled: process.env.SCREENSHOT_ENABLED !== "false",
