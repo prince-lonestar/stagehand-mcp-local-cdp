@@ -5,6 +5,37 @@ import type { BrowserSession, CreateSessionParams } from "./types/types.js";
 import { randomUUID } from "crypto";
 
 /**
+ * Helper function to convert HTTP CDP URL to WebSocket URL
+ * @param httpCdpUrl - HTTP CDP URL (e.g., http://localhost:9222)
+ * @returns WebSocket CDP URL (e.g., ws://localhost:9222/devtools/browser/...)
+ */
+async function getWebSocketCdpUrl(httpCdpUrl: string): Promise<string> {
+  try {
+    // Remove trailing slash if present
+    const baseUrl = httpCdpUrl.replace(/\/$/, '');
+
+    // Fetch the version endpoint to get the WebSocket debugger URL
+    const response = await fetch(`${baseUrl}/json/version`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch CDP version info: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    const wsUrl = data.webSocketDebuggerUrl;
+
+    if (!wsUrl) {
+      throw new Error('WebSocket debugger URL not found in CDP response');
+    }
+
+    process.stderr.write(`[SessionManager] Converted HTTP CDP URL ${httpCdpUrl} to WebSocket URL ${wsUrl}\n`);
+    return wsUrl;
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    throw new Error(`Failed to get WebSocket CDP URL from ${httpCdpUrl}: ${errorMsg}`);
+  }
+}
+
+/**
  * Create a configured Stagehand instance
  * This is used internally by SessionManager to initialize browser sessions
  */
@@ -34,31 +65,60 @@ export const createStagehandInstance = async (
   let stagehand: Stagehand;
 
   if (isLocalMode) {
-    // LOCAL mode - run browser locally
-    process.stderr.write(`[SessionManager] Creating LOCAL Stagehand instance for session ${sessionId}\n`);
+    const cdpUrl = process.env.CDP_URL;
 
-    stagehand = new Stagehand({
-      env: "LOCAL",
-      model: modelApiKey
-        ? {
-            apiKey: modelApiKey,
-            modelName: modelName,
-          }
-        : modelName,
-      experimental: config.experimental ?? false,
-      localBrowserLaunchOptions: {
-        headless: config.localBrowserLaunchOptions?.headless ?? true,
-        executablePath: config.localBrowserLaunchOptions?.executablePath,
-        args: config.localBrowserLaunchOptions?.args ?? [
-          "--no-sandbox",
-          "--disable-setuid-sandbox",
-          "--disable-dev-shm-usage",
-        ],
-      },
-      logger: (logLine) => {
-        console.error(`Stagehand[LOCAL][${sessionId}]: ${logLine.message}`);
-      },
-    });
+    if (cdpUrl) {
+      // LOCAL mode - connect to existing Chrome via CDP
+      process.stderr.write(`[SessionManager] Creating LOCAL Stagehand instance with CDP connection to ${cdpUrl} for session ${sessionId}\n`);
+
+      // Convert HTTP CDP URL to WebSocket URL if needed
+      let wsUrl = cdpUrl;
+      if (cdpUrl.startsWith('http://') || cdpUrl.startsWith('https://')) {
+        wsUrl = await getWebSocketCdpUrl(cdpUrl);
+      }
+
+      stagehand = new Stagehand({
+        env: "LOCAL",
+        localBrowserLaunchOptions: {
+          cdpUrl: wsUrl,
+        },
+        model: modelApiKey
+          ? {
+              apiKey: modelApiKey,
+              modelName: modelName,
+            }
+          : modelName,
+        experimental: config.experimental ?? false,
+        logger: (logLine) => {
+          console.error(`Stagehand[LOCAL-CDP][${sessionId}]: ${logLine.message}`);
+        },
+      });
+    } else {
+      // LOCAL mode - launch browser locally (original behavior)
+
+      stagehand = new Stagehand({
+        env: "LOCAL",
+        model: modelApiKey
+          ? {
+              apiKey: modelApiKey,
+              modelName: modelName,
+            }
+          : modelName,
+        experimental: config.experimental ?? false,
+        localBrowserLaunchOptions: {
+          headless: config.localBrowserLaunchOptions?.headless ?? true,
+          executablePath: config.localBrowserLaunchOptions?.executablePath,
+          args: config.localBrowserLaunchOptions?.args ?? [
+            "--no-sandbox",
+            "--disable-setuid-sandbox",
+            "--disable-dev-shm-usage",
+          ],
+        },
+        logger: (logLine) => {
+          console.error(`Stagehand[LOCAL][${sessionId}]: ${logLine.message}`);
+        },
+      });
+    }
   } else {
     // BROWSERBASE mode - use cloud browser
     stagehand = new Stagehand({

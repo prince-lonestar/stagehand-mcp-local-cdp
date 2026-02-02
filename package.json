@@ -1,7 +1,7 @@
 {
-  "name": "stagehand-mcp-local",
+  "name": "stagehand-mcp-cdp",
   "version": "1.0.0",
-  "description": "MCP server for AI browser automation using Stagehand - supports LOCAL mode without Browserbase cloud",
+  "description": "MCP server for AI browser automation using Stagehand with Chrome DevTools Protocol (CDP) support - control Chrome with extensions loaded",
   "keywords": [
     "mcp",
     "stagehand",
@@ -11,17 +11,20 @@
     "playwright",
     "claude",
     "openai",
-    "local"
+    "local",
+    "cdp",
+    "chrome-devtools",
+    "extensions"
   ],
   "license": "Apache-2.0",
-  "author": "weijiafu14",
-  "homepage": "https://github.com/weijiafu14/stagehand-mcp-local",
+  "author": "YOUR_NAME",
+  "homepage": "https://github.com/YOUR_USERNAME/stagehand-mcp-cdp",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/weijiafu14/stagehand-mcp-local.git"
+    "url": "git+https://github.com/YOUR_USERNAME/stagehand-mcp-cdp.git"
   },
   "bugs": {
-    "url": "https://github.com/weijiafu14/stagehand-mcp-local/issues"
+    "url": "https://github.com/YOUR_USERNAME/stagehand-mcp-cdp/issues"
   },
   "type": "module",
   "main": "./dist/index.js",

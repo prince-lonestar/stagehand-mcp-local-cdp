@@ -1,222 +1,285 @@
-# Stagehand MCP Server - Local Mode
+# Stagehand MCP with CDP Support
 
-[![npm version](https://badge.fury.io/js/stagehand-mcp-local.svg)](https://www.npmjs.com/package/stagehand-mcp-local)
-[![License: Apache-2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+A modified version of [stagehand-mcp-local](https://github.com/weijiafu14/stagehand-mcp-local) that adds support for connecting to an existing Chrome browser via Chrome DevTools Protocol (CDP).
 
-Run [Stagehand](https://github.com/browserbase/stagehand) browser automation locally without cloud services. A fork of the official [@browserbasehq/mcp-server-browserbase](https://github.com/browserbase/mcp-server-browserbase) with LOCAL mode support.
+## What's New
 
-## Why This Fork?
+This fork adds the ability to connect to a running Chrome instance with extensions loaded, instead of launching a new headless browser. This is useful when you need:
 
-The official Browserbase MCP server **only supports cloud mode**, requiring a paid Browserbase subscription. However, Stagehand itself fully supports local browser execution.
+- Chrome extensions loaded during automation
+- A visible browser for debugging
+- To reuse an existing browser session
+- Full control over browser launch parameters
 
-This fork unlocks that capability:
+## Features
 
-| Feature | Official Version | This Fork |
-|---------|-----------------|-----------|
-| Browser execution | Browserbase Cloud only | **Local Headless Chrome** |
-| Required credentials | `BROWSERBASE_API_KEY` + `PROJECT_ID` | Only LLM API key |
-| Cost | Browserbase subscription | **Free** (bring your own LLM key) |
-| Network requirement | Internet required | Works offline/intranet |
-| Auto screenshots | ❌ | ✅ After each action |
-
-## Use Cases
-
-- **Local development** - Test browser automation without cloud costs
-- **Self-hosted AI agents** - Run on your own servers
-- **Air-gapped environments** - No external cloud dependency
-- **CI/CD pipelines** - Automated testing without cloud API limits
+- ✅ Connect to existing Chrome via CDP
+- ✅ Load Chrome extensions during automation
+- ✅ Fallback to local browser launch if CDP_URL not set
+- ✅ Full Stagehand MCP functionality
+- ✅ Works with any Chromium-based browser
 
 ## Quick Start
 
-### Using npx (Recommended)
+### 1. Launch Chrome with Remote Debugging
 
-```bash
-npx stagehand-mcp-local
+Run the provided PowerShell script to launch Chrome with CDP enabled:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File launch-chrome-debug.ps1
 ```
 
-### Add to Claude Code
+This will:
+- Launch Chrome with remote debugging on port 9222
+- Load the extension from `C:\TFS\Extensions\extension-manager-pro`
+- Create a separate user profile in `chrome-debug-profile/`
+- Open Google as the starting page
 
-```bash
-claude mcp add stagehand-local \
-  -e STAGEHAND_ENV=LOCAL \
-  -e OPENAI_API_KEY=your_key \
-  -- npx stagehand-mcp-local
-```
+### 2. Configure Your MCP Client
 
-### Add to Cursor / VS Code
-
-Add to your MCP configuration:
+Update your MCP configuration file (e.g., `mcp.json` or Claude Desktop config) with the settings from `mcp-config-template.json`:
 
 ```json
 {
   "mcpServers": {
-    "stagehand-local": {
-      "command": "npx",
-      "args": ["stagehand-mcp-local"],
+    "stagehand": {
+      "command": "node",
+      "args": ["dist/index.js"],
+      "cwd": "C:\\Users\\Jason\\AppData\\Roaming\\AbacusAI\\Agent Workspaces\\Local-Stagehand-MCP\\Project\\temp-stagehand-mcp",
       "env": {
+        "OPENAI_API_KEY": "your-openai-api-key-here",
+        "STAGEHAND_MODEL": "gpt-4o",
         "STAGEHAND_ENV": "LOCAL",
-        "OPENAI_API_KEY": "your_openai_key"
+        "HEADLESS": "false",
+        "CDP_URL": "http://localhost:9222"
       }
     }
   }
 }
 ```
 
-## Installation
+**Important:** Replace `your-openai-api-key-here` with your actual OpenAI API key.
 
-### npm (Global)
+### 3. Start Using Stagehand
 
-```bash
-npm install -g stagehand-mcp-local
-```
+Your MCP client (e.g., Claude Desktop, Abacus AI) will now connect to the running Chrome instance via CDP.
 
-### From Source
+## How It Works
 
-```bash
-git clone https://github.com/weijiafu14/stagehand-mcp-local.git
-cd stagehand-mcp-local
-pnpm install
-pnpm build
+### CDP Connection Flow
+
+1. **Chrome Launch**: The `launch-chrome-debug.ps1` script starts Chrome with `--remote-debugging-port=9222`
+2. **MCP Server Start**: When the MCP server starts, it reads the `CDP_URL` environment variable
+3. **Connection**: If `CDP_URL` is set, Stagehand connects to the existing Chrome instance instead of launching a new one
+4. **Automation**: All Stagehand commands now control the visible Chrome browser with extensions loaded
+
+### Code Changes
+
+The main modification is in `Project/temp-stagehand-mcp/src/sessionManager.ts`:
+
+```typescript
+if (isLocalMode) {
+  const cdpUrl = process.env.CDP_URL;
+  
+  if (cdpUrl) {
+    // Connect to existing Chrome via CDP
+    stagehand = new Stagehand({
+      env: "LOCAL",
+      localBrowserLaunchOptions: {
+        cdpUrl: cdpUrl,
+      },
+      // ... other options
+    });
+  } else {
+    // Fallback: Launch new browser
+    stagehand = new Stagehand({
+      env: "LOCAL",
+      localBrowserLaunchOptions: {
+        headless: true,
+        // ... other options
+      },
+    });
+  }
+}
 ```
 
 ## Configuration
 
 ### Environment Variables
 
-| Variable | Description | Default | Required |
-|----------|-------------|---------|----------|
-| `STAGEHAND_ENV` | Set to `LOCAL` for local mode | `BROWSERBASE` | **Yes** |
-| `OPENAI_API_KEY` | OpenAI API key | - | One of these |
-| `GEMINI_API_KEY` | Google Gemini API key | - | is required |
-| `ANTHROPIC_API_KEY` | Anthropic API key | - | for Stagehand |
-| `HEADLESS` | Run browser headless | `true` | No |
-| `SCREENSHOT_ENABLED` | Enable auto screenshots | `true` | No |
-| `SCREENSHOT_DIR` | Screenshot save directory | `/tmp/stagehand-screenshots` | No |
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `CDP_URL` | No | - | Chrome DevTools Protocol URL (e.g., `http://localhost:9222`) |
+| `STAGEHAND_ENV` | Yes | - | Must be `LOCAL` for CDP support |
+| `STAGEHAND_MODEL` | Yes | - | AI model to use (e.g., `gpt-4o`, `gemini-2.0-flash`) |
+| `OPENAI_API_KEY` | Yes* | - | OpenAI API key (*required if using OpenAI models) |
+| `GEMINI_API_KEY` | Yes* | - | Google Gemini API key (*required if using Gemini models) |
+| `HEADLESS` | No | `true` | Ignored when using CDP (browser is always visible) |
 
-### CLI Options
+### Chrome Launch Options
 
-All original Browserbase MCP server options are supported:
+Edit `launch-chrome-debug.ps1` to customize:
 
-```bash
-npx stagehand-mcp-local --browserWidth 1920 --browserHeight 1080 --experimental
+```powershell
+$extensionPath = "C:\TFS\Extensions\extension-manager-pro"  # Your extension path
+$debugPort = 9222                                            # CDP port
+$chromePath = "C:\Program Files\Google\Chrome\Application\chrome.exe"  # Chrome executable
 ```
 
-| Flag | Description |
-|------|-------------|
-| `--browserWidth <width>` | Browser viewport width (default: 1024) |
-| `--browserHeight <height>` | Browser viewport height (default: 768) |
-| `--modelName <model>` | LLM model for Stagehand (default: gemini-2.0-flash) |
-| `--experimental` | Enable experimental Stagehand features |
+## 🧪 Testing
 
-## Available MCP Tools
+### 1. Test Chrome with CDP
 
-Once connected, your AI assistant can use these tools:
+First, launch Chrome with CDP enabled:
 
-| Tool | Description |
-|------|-------------|
-| `browserbase_session_create` | Create a new browser session |
-| `browserbase_session_close` | Close the current session |
-| `browserbase_stagehand_navigate` | Navigate to a URL |
-| `browserbase_stagehand_act` | Perform actions (click, type, etc.) |
-| `browserbase_stagehand_extract` | Extract data from page |
-| `browserbase_stagehand_observe` | Find interactive elements |
-| `browserbase_screenshot` | Take a screenshot |
-| `browserbase_stagehand_agent` | Run autonomous agent task |
-
-## Auto Screenshots
-
-In LOCAL mode, screenshots are automatically captured after each action for debugging and visualization:
-
-```
-Action performed: Click the login button
-[SCREENSHOT:/tmp/stagehand-screenshots/default/1702012345678.jpg]
+```powershell
+.\launch-chrome-debug.ps1
 ```
 
-Parse the screenshot path programmatically:
+Verify CDP is accessible:
 
-```javascript
-const match = output.match(/\[SCREENSHOT:(.+?)\]/);
-if (match) {
-  const screenshotPath = match[1];
-  // Use the screenshot...
-}
+```powershell
+Invoke-WebRequest -Uri "http://localhost:9222/json" | Select-Object -ExpandProperty Content
 ```
 
-## System Requirements
+### 2. Test MCP Server
 
-### macOS / Windows
+Run the test script:
 
-Playwright will download Chromium automatically.
-
-### Linux (Ubuntu/Debian)
-
-```bash
-# Install browser dependencies
-apt-get update && apt-get install -y \
-  chromium libatk1.0-0 libatk-bridge2.0-0 libcups2 \
-  libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 \
-  libxfixes3 libxrandr2 libgbm1 libasound2 \
-  libpango-1.0-0 libcairo2
-
-# Install Playwright browsers
-npx playwright install chromium
+```powershell
+.\test-mcp-server.ps1
 ```
 
-### Docker
+You should see:
+```
+========================================
+Testing Stagehand MCP Server with CDP
+========================================
 
-```dockerfile
-FROM node:20
+Environment Variables:
+  STAGEHAND_ENV: LOCAL
+  STAGEHAND_MODEL: gpt-4o
+  CDP_URL: http://localhost:9222
+  HEADLESS: false
 
-RUN apt-get update && apt-get install -y \
-  chromium libatk1.0-0 libatk-bridge2.0-0 libcups2 \
-  libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 \
-  libxfixes3 libxrandr2 libgbm1 libasound2 \
-  libpango-1.0-0 libcairo2 \
-  && rm -rf /var/lib/apt/lists/*
+Starting MCP Server...
+Press Ctrl+C to stop
 
-ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
-RUN npx playwright install chromium
-
-ENV STAGEHAND_ENV=LOCAL
+[Config] Running in LOCAL mode - Browserbase credentials not required
 ```
 
-## Switching Between Modes
+The server is now running and waiting for MCP client connections via stdio.
 
-You can switch back to Browserbase cloud mode anytime:
+### 3. Configure Abacus AI Desktop
+
+1. Open Abacus AI Desktop settings
+2. Navigate to MCP configuration
+3. Add the configuration from `mcp-config-template.json`:
 
 ```json
 {
-  "env": {
-    "STAGEHAND_ENV": "BROWSERBASE",
-    "BROWSERBASE_API_KEY": "your_key",
-    "BROWSERBASE_PROJECT_ID": "your_project_id",
-    "GEMINI_API_KEY": "your_gemini_key"
+  "mcpServers": {
+    "stagehand": {
+      "command": "node",
+      "args": [
+        "C:\\Users\\Jason\\AppData\\Roaming\\AbacusAI\\Agent Workspaces\\Local-Stagehand-MCP\\Project\\temp-stagehand-mcp\\cli.js"
+      ],
+      "env": {
+        "STAGEHAND_ENV": "LOCAL",
+        "STAGEHAND_MODEL": "gpt-4o",
+        "OPENAI_API_KEY": "YOUR_OPENAI_API_KEY_HERE",
+        "CDP_URL": "http://localhost:9222",
+        "HEADLESS": "false"
+      }
+    }
   }
 }
 ```
 
-## Contributing
+4. Replace `YOUR_OPENAI_API_KEY_HERE` with your actual OpenAI API key
+5. Save and restart Abacus AI Desktop
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+### 4. Verify Connection
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+After restarting Abacus AI Desktop:
+
+1. Check the MCP server logs in Abacus AI
+2. You should see the server connect successfully
+3. Try a simple command like "Navigate to google.com"
+4. The Chrome window you launched should respond to commands
+
+This should return a JSON list of available targets.
+
+## Troubleshooting
+
+### Chrome Won't Launch
+
+**Error:** "Chrome executable not found"
+- **Solution:** Update `$chromePath` in `launch-chrome-debug.ps1` to point to your Chrome installation
+
+**Error:** "Extension path does not exist"
+- **Solution:** Update `$extensionPath` in `launch-chrome-debug.ps1` to point to your extension
+
+### MCP Server Errors
+
+**Error:** "Cannot connect to CDP"
+- **Solution:** Make sure Chrome is running with remote debugging enabled
+- **Check:** Visit `http://localhost:9222/json` to verify CDP is accessible
+
+**Error:** "OPENAI_API_KEY not set"
+- **Solution:** Add your API key to the MCP configuration
+
+### Port Already in Use
+
+**Error:** "Port 9222 is already in use"
+- **Solution:** Close any existing Chrome instances with debugging enabled, or change the port in both `launch-chrome-debug.ps1` and your MCP config
+
+## Development
+
+### Rebuilding After Changes
+
+If you modify the source code:
+
+```powershell
+cd Project\temp-stagehand-mcp
+npm run build
+```
+
+### Project Structure
+
+```
+Local-Stagehand-MCP/
+├── launch-chrome-debug.ps1          # Chrome launcher script
+├── test-mcp-server.ps1              # Test script
+├── mcp-config-template.json         # MCP configuration template
+├── README.md                        # This file
+├── chrome-debug-profile/            # Chrome user data (created on first run)
+└── Project/
+    └── temp-stagehand-mcp/          # MCP server source and build
+        ├── src/
+        │   ├── sessionManager.ts    # Modified for CDP support
+        │   └── ...
+        ├── dist/                    # Compiled JavaScript
+        ├── package.json
+        └── tsconfig.json
+```
 
 ## Credits
 
-This project is a fork of [@browserbasehq/mcp-server-browserbase](https://github.com/browserbase/mcp-server-browserbase) by [Browserbase, Inc](https://www.browserbase.com/).
-
-Built with:
-- [Stagehand](https://github.com/browserbase/stagehand) - AI browser automation framework
-- [Model Context Protocol](https://modelcontextprotocol.io/) - LLM integration standard
-- [Playwright](https://playwright.dev/) - Browser automation
+- Original project: [stagehand-mcp-local](https://github.com/weijiafu14/stagehand-mcp-local) by weijiafu14
+- Stagehand framework: [Browserbase Stagehand](https://github.com/browserbase/stagehand)
+- CDP support added for extension compatibility
 
 ## License
 
-Apache-2.0 - See [LICENSE](./LICENSE) for details.
+Apache-2.0 (same as original project)
 
-**Original work**: Copyright 2025 Browserbase, Inc.
-**Modifications**: Copyright 2025 weijiafu14
+## Support
+
+For issues specific to CDP support, please check:
+1. Chrome is running with `--remote-debugging-port=9222`
+2. `CDP_URL` environment variable is set correctly
+3. No firewall blocking localhost:9222
+4. Extension path is correct and accessible
+
+For general Stagehand issues, refer to the [official Stagehand documentation](https://docs.stagehand.dev/).
