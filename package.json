@@ -1,5 +1,5 @@
 {
-  "name": "stagehand-mcp-cdp",
+  "name": "stagehand-mcp-local-cdp",
   "version": "1.0.0",
   "description": "MCP server for AI browser automation using Stagehand with Chrome DevTools Protocol (CDP) support - control Chrome with extensions loaded",
   "keywords": [
@@ -17,14 +17,14 @@
     "extensions"
   ],
   "license": "Apache-2.0",
-  "author": "YOUR_NAME",
-  "homepage": "https://github.com/YOUR_USERNAME/stagehand-mcp-cdp",
+  "author": "Jay Farr",
+  "homepage": "https://github.com/prince-lonestar/stagehand-mcp-local-cdp",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/YOUR_USERNAME/stagehand-mcp-cdp.git"
+    "url": "git+https://github.com/prince-lonestar/stagehand-mcp-local-cdp.git"
   },
   "bugs": {
-    "url": "https://github.com/YOUR_USERNAME/stagehand-mcp-cdp/issues"
+    "url": "https://github.com/prince-lonestar/stagehand-mcp-local-cdp/issues"
   },
   "type": "module",
   "main": "./dist/index.js",
