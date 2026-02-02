@@ -163,16 +163,16 @@ You can now use Stagehand MCP tools to automate the visible Chrome browser:
 
 ## ⚠️ Known Issues
 
-### Act Tool Limitation
+### Act Tool - DISABLED BY DEFAULT
 
-The `browserbase_stagehand_act` tool has an **intermittent issue** with Stagehand 3.0.8 (latest stable version) where it fails with Zod schema validation errors when using GPT-4o. This is a [known upstream issue](https://github.com/browserbase/stagehand/issues/676) in the Stagehand library.
+The `browserbase_stagehand_act` tool has been **disabled by default** in this fork due to intermittent Zod schema validation errors with Stagehand 3.0.8 (latest stable version). This is a [known upstream issue](https://github.com/browserbase/stagehand/issues/676) in the Stagehand library.
 
 **Status:** 4 out of 5 tools fully functional
 - ✅ Navigate - Working
 - ✅ Observe - Working
 - ✅ Extract - Working
 - ✅ Screenshot - Working
-- ⚠️ Act - Intermittent failures
+- ❌ Act - **DISABLED** (intermittent failures)
 
 **Recommended Workaround:**
 
