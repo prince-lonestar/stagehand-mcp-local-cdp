@@ -161,6 +161,23 @@ You can now use Stagehand MCP tools to automate the visible Chrome browser:
 - `browserbase_stagehand_observe` - Find elements on the page
 - `browserbase_screenshot` - Take screenshots
 
+## ⚠️ Known Issues
+
+### Act Tool Limitation
+
+The `browserbase_stagehand_act` tool has an **intermittent issue** with Stagehand 3.0.8 (latest stable version) where it fails with Zod schema validation errors when using GPT-4o. This is a [known upstream issue](https://github.com/browserbase/stagehand/issues/676) in the Stagehand library.
+
+**Status:** 4 out of 5 tools fully functional
+- ✅ Navigate - Working
+- ✅ Observe - Working
+- ✅ Extract - Working
+- ✅ Screenshot - Working
+- ⚠️ Act - Intermittent failures
+
+**Recommended Workaround:**
+
+Use the **Observe** tool (which works perfectly) combined with direct Playwright commands. See [ACT_TOOL_TROUBLESHOOTING.md](ACT_TOOL_TROUBLESHOOTING.md) for detailed solutions.
+
 ## 🔧 Configuration Options
 
 ### Environment Variables
