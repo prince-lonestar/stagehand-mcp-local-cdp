@@ -1,14 +1,15 @@
 {
   "mcpServers": {
-    "stagehand-local": {
+    "stagehand": {
       "command": "node",
       "args": [
-        "C:\\\\Users\\\\Jason\\\\Documents\\\\Local Stagehand MCP\\\\cli.js"
+        "/path/to/stagehand-mcp-local-cdp/cli.js"
       ],
       "env": {
-        "OPENAI_API_KEY": "YOUR_OPENAI_API_KEY_HERE",
+        "OPENAI_API_KEY": "your-openai-api-key-here",
         "STAGEHAND_MODEL": "gpt-4o",
         "STAGEHAND_ENV": "LOCAL",
+        "HEADLESS": "false",
         "CDP_URL": "http://localhost:9222"
       }
     }
